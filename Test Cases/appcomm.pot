@@ -1,0 +1,3 @@
+import NatList
+
+main = eqNatList (append xs ys) (append ys xs)

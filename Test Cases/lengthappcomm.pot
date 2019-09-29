@@ -1,0 +1,6 @@
+import NatList
+
+main = eqNat (length (append xs ys)) (length (append ys xs))
+
+
+

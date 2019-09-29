@@ -1,0 +1,11 @@
+main = even (double x Zero);
+
+even x = case x of
+             Zero     -> True
+           | Succ(x') -> case x' of
+                            Zero      -> False
+                          | Succ(x'') -> even x'';
+double x y = case x of
+                 Zero     -> y
+               | Succ(x') -> double x' Succ(Succ(y))
+    
