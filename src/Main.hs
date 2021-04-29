@@ -2,9 +2,9 @@ module Main (
     main
 ) where
 
-import Verify
+import Prove
 import Term
-import Transform
+import Trans
 import Text.ParserCombinators.Parsec
 import Debug.Trace
 import System.Directory
@@ -36,8 +36,8 @@ command str = let res = words str
 helpMessage = "\n:load filename\t\tTo load the given filename\n"++
                ":prog\t\t\tTo print the current program\n"++
                ":term\t\t\tTo print the current term\n"++
-               ":eval\t\t\tTo evaluate the current term\n"++
-               ":prove\t\t\tTo prove the current term\n"++
+               ":eval\t\t\tTo evaluate the current program\n"++
+               ":verify\t\t\tTo verify the current program\n"++
                ":quit\t\t\tTo quit\n"++
                ":help\t\t\tTo print this message\n"
 
@@ -52,18 +52,14 @@ toplevel p = do putStr "POT> "
                 x <-  getLine
                 case command x of
                    Load f -> g [f] [] []
-                             where
-                             g [] ys ds = let ds' = makeFuns ds
-                                          in  case lookup "main" ds' of
-                                                 Nothing -> do putStrLn "No main function"
-                                                               toplevel Nothing
-                                                 Just (xs,t) -> toplevel (Just (t,ds'))
-                             g (x:xs) ys ds = if   x `elem` ys
-                                              then g xs ys ds
-                                              else do r <- loadFile x
-                                                      case r of
-                                                         Nothing -> toplevel Nothing
-                                                         Just (fs,ds2) -> g (xs++fs) (x:ys) (ds++ds2)
+                            where
+                            g [] ys d = toplevel (Just (makeProg d))
+                            g (x:xs) ys d = if   x `elem` ys
+                                            then g xs ys d
+                                            else do r <- loadFile x
+                                                    case r of
+                                                       Nothing -> toplevel Nothing
+                                                       Just (fs,d') -> g (xs++fs) (x:ys) (d++d')
                    Prog -> case p of
                               Nothing -> do putStrLn "No program loaded"
                                             toplevel p
@@ -94,8 +90,8 @@ toplevel p = do putStr "POT> "
                    Verify -> case p of
                                 Nothing -> do putStrLn "No program loaded"
                                               toplevel p
-                                Just t -> do print (verify (dist t))
-                                             toplevel p
+                                Just (t,d) -> do print (prove (t,d))
+                                                 toplevel p
                    Quit -> return ()
                    Help -> do putStrLn helpMessage
                               toplevel p
