@@ -2,7 +2,7 @@ module Main (
     main
 ) where
 
-import Prove
+import Verify
 import Term
 import Trans
 import Text.ParserCombinators.Parsec
@@ -17,6 +17,7 @@ data Command = Load String
              | Prog
              | Term
              | Eval
+             | Distill
              | Verify
              | Quit
              | Help
@@ -28,6 +29,7 @@ command str = let res = words str
                    [":prog"] -> Prog
                    [":term"] -> Term
                    [":eval"] -> Eval
+                   [":distill"] -> Distill
                    [":verify"] -> Verify
                    [":quit"] -> Quit
                    [":help"] -> Help
@@ -37,6 +39,7 @@ helpMessage = "\n:load filename\t\tTo load the given filename\n"++
                ":prog\t\t\tTo print the current program\n"++
                ":term\t\t\tTo print the current term\n"++
                ":eval\t\t\tTo evaluate the current program\n"++
+               ":distill\t\tTo distill the current program\n"++
                ":verify\t\t\tTo verify the current program\n"++
                ":quit\t\t\tTo quit\n"++
                ":help\t\t\tTo print this message\n"
@@ -87,6 +90,12 @@ toplevel p = do putStr "POT> "
                                                                 Left s -> do putStrLn ("Could not parse term: "++ show s)
                                                                              f (x:xs) t
                                                                 Right u -> f xs (subst u (abstract t x))
+                   Distill -> case p of
+                                 Nothing -> do putStrLn "No program loaded"
+                                               toplevel p
+                                 Just (t,d) -> do let p' = dist (t,d)
+                                                  putStrLn (showProg p')
+                                                  toplevel (Just p')
                    Verify -> case p of
                                 Nothing -> do putStrLn "No program loaded"
                                               toplevel p

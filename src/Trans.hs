@@ -54,11 +54,14 @@ distillCtx t (CaseCtx k bs) fv m1 m2 d = do
                                                                       return (c,xs,foldl abstract t' xs')) bs
                                          return (Case t bs')
 
-fold1 t fv m1 m2 d = case find (\(f',t') -> instTerm t' t) m1 of
-                        Just (f',t') -> return (Fold (Free f') t)
-                        Nothing -> case find (\(f',t') -> embedTerm t' t) m1 of
-                                      Just (f',t') -> throw (t',t)
-                                      Nothing -> let f' = renameVar (map fst m1++map fst m2) "f"
+fold1 t fv m1 m2 d = case find (\(f,t') -> instTerm t' t) m1 of
+                        Just (f,t') -> let s = head (inst t' t)
+                                           u = foldl Apply (Fun f) (map Free (free t'))
+                                       in  return (Fold (instantiate s u) t)
+                        Nothing -> case find (\(f,t') -> embedTerm t' t) m1 of
+                                      Just (f,t') -> throw (t',t)
+                                      Nothing -> let f = renameVar (map fst m1++map fst m2) "f"
+                                                     u = foldl Apply (Fun f) (map Free (free t))
                                                      handler (t',u) = if   t==t'
                                                                       then let r = head (embedding t u)
                                                                                (u',s1,s2) = generalise t (rename r u)
@@ -67,14 +70,17 @@ fold1 t fv m1 m2 d = case find (\(f',t') -> instTerm t' t) m1 of
                                                                                fold2 u'' fv s1 m1 m2 d
                                                                       else throw (t',u)
                                                  in  do 
-                                                     u <- handle (distill (unfold(t,d)) EmptyCtx fv ((f',t):m1) m2 d) handler
-                                                     if f' `elem` free u then fold2 (Unfold t (abstract u f')) fv [] m1 m2 d else return u
+                                                     u' <- handle (distill (unfold(t,d)) EmptyCtx fv ((f,t):m1) m2 d) handler
+                                                     if Fun f `elem` folds u' then fold2 (Unfold u u') fv [] m1 m2 d else return u'
 
-fold2 t fv s m1 m2 d  = case find (\(f',(t',s')) -> instLTS (t',s') (t,s)) m2 of
-                           Just (f',(t',s')) -> return (Fold (Free f') (instantiate s t))
-                           Nothing -> case find (\(f',(t',s')) -> embedLTS (t',s') (t,s)) m2 of
-                                         Just (f',(t',s')) -> throw (t',t)
-                                         Nothing -> let f' = renameVar (map fst m1 ++ map fst m2) "f"
+fold2 t fv s m1 m2 d  = case find (\(f,(t',s')) -> instLTS (t',s') (t,s)) m2 of
+                           Just (f,(t',s')) -> let s'' = head (inst (instantiate s' t') (instantiate s t))
+                                                   u = foldl Apply (Fun f) (map Free (free (instantiate s' t')))
+                                               in  return (Fold (instantiate s'' u) (instantiate s t))
+                           Nothing -> case find (\(f,(t',s')) -> embedLTS (t',s') (t,s)) m2 of
+                                         Just (f,(t',s')) -> throw (t',t)
+                                         Nothing -> let f = renameVar (map fst m1 ++ map fst m2) "f"
+                                                        u = foldl Apply (Fun f) (map Free (free (instantiate s t)))
                                                         handler (t',u) = if   t==t'
                                                                          then let r = head (embedding t u)
                                                                                   (u',s1,s2) = generalise t (rename r u)
@@ -83,6 +89,6 @@ fold2 t fv s m1 m2 d  = case find (\(f',(t',s')) -> instLTS (t',s') (t,s)) m2 of
                                                                          else throw (t',u)
                                                         (t',d') = residualise (t,d)
                                                     in  do 
-                                                        u <- handle (distill (unfold(instantiate s t',d')) EmptyCtx fv m1 ((f',(t,s)):m2) d') handler
-                                                        return (if f' `elem` free u then Unfold (instantiate s t) (abstract u f') else u)
+                                                        u' <- handle (distill (unfold(instantiate s t',d')) EmptyCtx fv m1 ((f,(t,s)):m2) d') handler
+                                                        return (if Fun f `elem` folds u' then Unfold u u' else u')
 
