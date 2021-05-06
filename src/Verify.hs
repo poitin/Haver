@@ -19,7 +19,7 @@ prove' (Case (Free x) bs) fv m = all (\(c,xs,t) -> let fv' = renameVars fv xs
                                                    in  prove' (foldr concrete t xs') fv' (add x m)) bs
 prove' (Let x t u) fv m = prove' t fv m && prove' u fv m
 prove' (Unfold t u) fv m = prove' u fv ((t,[]):m)
-prove' (Fold t u) fv m = case find (\(t',cs) -> instTerm t' t) m of
+prove' (Fold t u) fv m = case find (\(t',cs) -> isInst t' t) m of
                               Nothing -> prove' u fv m
                               Just (t',cs) -> not (null (free t' `intersect` cs))
 

@@ -54,11 +54,11 @@ distillCtx t (CaseCtx k bs) fv m1 m2 d = do
                                                                       return (c,xs,foldl abstract t' xs')) bs
                                          return (Case t bs')
 
-fold1 t fv m1 m2 d = case find (\(f,t') -> instTerm t' t) m1 of
+fold1 t fv m1 m2 d = case find (\(f,t') -> isInst t' t) m1 of
                         Just (f,t') -> let s = head (inst t' t)
                                            u = foldl Apply (Fun f) (map Free (free t'))
                                        in  return (Fold (instantiate s u) t)
-                        Nothing -> case find (\(f,t') -> embedTerm t' t) m1 of
+                        Nothing -> case find (\(f,t') -> isEmbed t' t) m1 of
                                       Just (f,t') -> throw (f,t)
                                       Nothing -> let f = renameVar (map fst m1++map fst m2) "f"
                                                      u = foldl Apply (Fun f) (map Free (free t))
@@ -74,11 +74,11 @@ fold1 t fv m1 m2 d = case find (\(f,t') -> instTerm t' t) m1 of
                                                      if Fun f `elem` folds u' then fold2 (Unfold u u') fv [] m1 m2 d else return u'
 
 fold2 t fv s m1 m2 d  = let t' = instantiate s t
-                        in  case find (\(f,u) -> instTerm u t') m2 of
+                        in  case find (\(f,u) -> isInst u t') m2 of
                                Just (f,u) -> let s'' = head (inst u t')
                                                  u' = foldl Apply (Fun f) (map Free (free u))
                                              in  return (Fold (instantiate s'' u') t')
-                               Nothing -> case find (\(f,u) -> embedTerm u t') m2 of
+                               Nothing -> case find (\(f,u) -> isEmbed u t') m2 of
                                              Just (f,u) -> throw (f,t)
                                              Nothing -> let f = renameVar (map fst m1 ++ map fst m2) "f"
                                                             u = foldl Apply (Fun f) (map Free (free t'))

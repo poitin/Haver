@@ -50,7 +50,7 @@ eqTerm ls (Fun f,Fun f') = f==f'
 eqTerm ls (Case t bs,Case t' bs') | matchCase bs bs' = eqTerm ls (t,t') && all (\((_,_,t),(_,_,t')) -> eqTerm ls (t,t')) (zip bs bs')
 eqTerm ls (Let x t u,Let x' t' u') = eqTerm ls (t,t') && eqTerm ls (u,u')
 eqTerm ls (Unfold t u,Unfold t' u') = eqTerm ((redex t,redex t'):ls) (u,u')   
-eqTerm ls (Fold t u,Fold t' u') = (redex t,redex t') `elem` ls                               
+eqTerm ls (Fold t u,Fold t' u') = (redex t,redex t') `elem` ls  || eqTerm ls (u,u')                         
 eqTerm ls (t,t') = False
 
 -- context surrounding redex
@@ -96,12 +96,12 @@ inst' ls (Case t bs) (Case t' bs') fv bv s | matchCase bs bs' = foldr (\((c,xs,t
 inst' ls (Let x t u) (Let x' t' u') fv bv s = let x'' = renameVar (fv++bv) x
                                               in concat [inst' ls (concrete x'' u) (concrete x'' u') fv (x'':bv) s' | s' <- inst' ls t t' fv bv s]
 inst' ls (Unfold t u) (Unfold t' u') fv bv s = inst' ((redex t,redex t'):ls) u u' fv bv s
-inst' ls (Fold t u) (Fold t' u') fv bv s = [s | (redex t,redex t') `elem` ls]
+inst' ls (Fold t u) (Fold t' u') fv bv s = if   (redex t,redex t') `elem` ls
+                                           then [s]
+                                           else inst' ls u u' fv bv s
 inst' ls t t' fv bv s = []
 
-instTerm t t' = not (null (inst t t'))
-
-instLTS (t,s) (t',s') = instTerm (instantiate s t) (instantiate s' t')
+isInst t t' = not (null (inst t t'))
 
 -- homeomorphic embedding
 
@@ -118,7 +118,9 @@ couple ls (Fun f) (Fun f') r | f==f' = [r]
 couple ls (Case t bs) (Case t' bs') r | matchCase bs bs' = foldr (\((c,xs,t),(c',xs',t')) rs -> concat [embed ls t t' r | r <- rs]) (embed ls t t' r) (zip bs bs')
 couple ls (Let x t u) (Let x' t' u') r = concat [embed ls u u' r' | r' <- embed ls t t' r]
 couple ls (Unfold t u) (Unfold t' u') r = embed ((redex t,redex t'):ls) u u' r
-couple ls (Fold t u) (Fold t' u') r = [r | (redex t,redex t') `elem` ls]
+couple ls (Fold t u) (Fold t' u') r = if   (redex t,redex t') `elem` ls
+                                      then [r]
+                                      else embed ls u u' r
 couple ls t t' r = []
 
 dive ls t (Lambda x t') r = embed ls t (concrete x t') r
@@ -127,11 +129,10 @@ dive ls t (Apply t' u) r = embed ls t t' r ++ embed ls t u r
 dive ls t (Case t' bs) r = embed ls t t' r ++ concatMap (\(c,xs,t') -> embed ls t (foldr concrete t' xs) r) bs
 dive ls t (Let x t' u) r = embed ls t t' r ++ embed ls t u r
 dive ls t (Unfold t' u) r = embed ls t u r
+dive ls t (Fold t' u) r = embed ls t u r
 dive ls t t' r = []
 
-embedTerm t t' = not (null (embedding t t')) && matchRedex (redex t) (redex t')
-
-embedLTS (t,s) (t',s') = embedTerm (instantiate s t) (instantiate s' t')
+isEmbed t t' = not (null (embedding t t')) && matchRedex (redex t) (redex t')
 
 -- generalisation
 
@@ -163,7 +164,10 @@ generalise' ls (Let x t u) (Let x' t' u') fv bv s1 s2 = let x'' = renameVar (fv+
 generalise' ls (Unfold t u) (Unfold t' u') fv bv s1 s2 = let xs = free t
                                                              (u'',s1',s2') = generalise' ((redex t,redex t'):ls) u u' (xs++fv) (xs++bv) s1 s2
                                                          in  (Unfold t u'',s1',s2')
-generalise' ls (Fold t u) (Fold t' u') fv bv s1 s2 | (redex t,redex t') `elem` ls = (Fold t u,s1,s2)
+generalise' ls (Fold t u) (Fold t' u') fv bv s1 s2 = if   (redex t,redex t') `elem` ls 
+                                                     then (Fold t u,s1,s2)
+                                                     else let (u'',s1',s2') = generalise' ls u u' fv bv s1 s2
+                                                          in  (Fold t u'',s1',s2')
 generalise' ls t u fv bv s1 s2 = let xs = intersect bv (free t)
                                      t' = foldl (\t x -> Lambda x (abstract t x)) t xs    
                                      u' = foldl (\t x -> Lambda x (abstract t x)) u xs 
@@ -202,7 +206,7 @@ residualise' (Unfold t u) fv m d = let f = renameVar (map fst d ++ map fst m) "f
                                        xs = free u
                                        (t',d') = residualise' u fv ((f,(xs,t)):m) d
                                    in  (foldl Apply (Fun f) (map Free xs),(f,(xs,foldl abstract t' xs)):d')  
-residualise' (Fold t u) fv m d = case find (\(f,(xs,t')) -> instTerm t' t) m of
+residualise' (Fold t u) fv m d = case find (\(f,(xs,t')) -> isInst t' t) m of
                                     Just (f,(xs,t')) -> let s = head (inst t' t)
                                                         in  (instantiate s (foldl Apply (Fun f) (map Free xs)),d)
                                     Nothing -> residualise' u fv m d
