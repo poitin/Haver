@@ -10,7 +10,6 @@ import Debug.Trace
 dist (t,d) = let t' =  returnval (distill t EmptyCtx (free t) [] [] d)
              in  residualise (t',[])
 
-
 distill (Free x) (CaseCtx k bs) fv m1 m2 d = do
                                              bs' <- mapM (\(c,xs,t) -> let t' = place t k
                                                                            fv' = renameVars fv xs
@@ -74,10 +73,10 @@ fold1 t fv m1 m2 d = case find (\(f,t') -> isInst t' t) m1 of
                                                      u' <- handle (distill (unfold(t,d)) EmptyCtx fv ((f,t):m1) m2 d) handler
                                                      if Fun f `elem` folds u' then fold2 (Unfold u u') fv [] m1 m2 d else return u'
 
-fold2 t fv s m1 m2 d  = case find (\(f,(t',s')) -> isInst (instantiate s' t') (instantiate s t)) m2 of
+fold2 t fv s m1 m2 d = case find (\(f,(t',s')) -> isInst (instantiate s' t') (instantiate s t)) m2 of
                            Just (f,(t',s')) -> let s'' = head (inst (instantiate s' t') (instantiate s t))
                                                    u = foldl Apply (Fun f) (map Free (free (instantiate s' t')))
-                                               in  return (Fold (instantiate s'' u) (instantiate s t))
+                                               in  trace "Instance" return (Fold (instantiate s'' u) (instantiate s t))
                            Nothing -> case find (\(f,(t',s')) -> isEmbed (instantiate s' t') (instantiate s t)) m2 of
                                          Just (f,(t',s')) -> throw (f,t)
                                          Nothing -> let f = renameVar (map fst m1 ++ map fst m2) "f"

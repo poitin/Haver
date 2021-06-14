@@ -87,8 +87,8 @@ inst' fs (Bound i) (Bound i') fv bv s | i==i' = [s]
 inst' fs (Lambda x t) (Lambda x' t') fv bv s = let x'' = renameVar (fv++bv) x
                                                in  inst' fs (concrete x'' t) (concrete x'' t') fv (x'':bv) s
 inst' fs (Con c ts) (Con c' ts') fv bv s | c==c' = foldr (\(t,t') ss -> concat [inst' fs t t' fv bv s | s <- ss]) [s] (zip ts ts')
-inst' fs (Apply t (Free x)) u fv bv s | x `elem` bv = inst' fs t (Lambda x (abstract u x)) fv bv s
 inst' fs (Apply t u) (Apply t' u') fv bv s = concat [inst' fs u u' fv bv s' | s' <- inst' fs t t' fv bv s]
+inst' fs (Apply t (Free x)) u fv bv s | x `elem` bv = inst' fs t (Lambda x (abstract u x)) fv bv s
 inst' fs (Fun f) (Fun f') fv bv s | f==f' = [s]
 inst' fs (Case t bs) (Case t' bs') fv bv s | matchCase bs bs' = foldr (\((c,xs,t),(c',xs',t')) ss -> let fv' = renameVars (fv++bv) xs
                                                                                                          xs'' = take (length xs) fv'
@@ -135,7 +135,7 @@ isEmbed t t' = not (null (embedding t t')) && matchRedex (redex t) (redex t')
 generalise t u = generalise' [] t u (free t++free u) [] [] []
 
 generalise' fs (Free x) (Free x') fv bv s1 s2 | x==x' = (Free x,s1,s2)
-generalise' fs (Free x) t fv bv s1 s2 | x `elem` bv = (Free x,(x,Free x):s1,(x,t):s2)
+--generalise' fs (Free x) t fv bv s1 s2 | x `elem` bv = (Free x,(x,Free x):s1,(x,t):s2)
 generalise' fs (Bound i) (Bound i') fv bv s1 s2 | i==i' = (Bound i,s1,s2)
 generalise' fs (Lambda x t) (Lambda x' t') fv bv s1 s2 = let x'' = renameVar (fv++map fst s1) x
                                                              (t'',s1',s2') = generalise' fs (concrete x'' t) (concrete x'' t') (x'':fv) (x'':bv) s1 s2
